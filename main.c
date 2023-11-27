@@ -113,60 +113,136 @@ int *get_pid_list(void)
     return pid_list;
 }
 
-// Get the page frame number of each pid from /proc/pid/maps
-// return the list of physical addresses
+// Get the Virtual address from /proc/pid/maps
+// return the list of virtual address
 
-typdef struct pfn
+typedef struct _vaddr
 {
     unsigned long long start;
     unsigned long long end;
-};
+} vaddr;
 
-unsigned long long *get_paddr_list(int pid)
+vaddr *get_vaddr_list(int pid)
 {
+    vaddr *vaddr_list = NULL;
+    int vaddr_list_size = 0;
+    int vaddr_list_capacity = 1024;
 
-    unsigned long long *paddr_list = NULL;
-    int paddr_list_size = 0;
-    int paddr_list_capacity = 1024;
-
-    paddr_list = (unsigned long long *)malloc(sizeof(unsigned long long) * paddr_list_capacity);
+    vaddr_list = (vaddr *)malloc(sizeof(vaddr) * vaddr_list_capacity);
 
     char path[1024];
     sprintf(path, "/proc/%d/maps", pid);
 
-    FILE *mapf = fopen(path, "r");
-    if (mapf == NULL)
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL)
     {
         printf("Failed to open %s\n", path);
         exit(1);
     }
 
     char line[1024];
-    while (fgets(line, sizeof(line), mapf) != NULL)
+    while (fgets(line, sizeof(line), fp) != NULL)
     {
         unsigned long long start, end;
-        char r, w, x, p;
-        int offset, dev_major, dev_minor, inode;
-        char pathname[1024];
+        sscanf(line, "%llx-%llx", &start, &end);
 
-        int ret = sscanf(line, "%llx-%llx %c%c%c%c %x %x:%x %d %s\n",
-                         &start, &end, &r, &w, &x, &p,
-                         &offset, &dev_major, &dev_minor, &inode, pathname);
-
-        // There also can be no pathname , which inode is 0
-        if (ret == 11 || ret == 10)
+        if (vaddr_list_size >= vaddr_list_capacity)
         {
-            if (paddr_list_size >= paddr_list_capacity)
+            vaddr_list_capacity *= 2;
+            vaddr_list = (vaddr *)realloc(vaddr_list, sizeof(vaddr) * vaddr_list_capacity);
+        }
+        vaddr_list[vaddr_list_size].start = start;
+        vaddr_list[vaddr_list_size++].end = end;
+    }
+
+    fclose(fp);
+
+    vaddr_list = (vaddr *)realloc(vaddr_list, sizeof(vaddr) * vaddr_list_size);
+
+    return vaddr_list;
+}
+
+// Get the Physical address from /proc/pid/pagemap
+// return the list of physical address
+
+typedef struct _paddr
+{
+    unsigned long long start;
+    unsigned long long end;
+} paddr;
+
+paddr *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
+{
+    paddr *paddr_list = NULL;
+    int paddr_list_size = 0;
+    int paddr_list_capacity = 1024;
+
+    paddr_list = (paddr *)malloc(sizeof(paddr) * paddr_list_capacity);
+
+    char path[1024];
+    sprintf(path, "/proc/%d/pagemap", pid);
+
+    int fd = open(path, O_RDONLY);
+    if (fd < 0)
+    {
+        printf("Failed to open %s\n", path);
+        exit(1);
+    }
+
+    for (int i = 0; i < vaddr_list_size; i++)
+    {
+        unsigned long long start = vaddr_list[i].start;
+        unsigned long long end = vaddr_list[i].end;
+
+        unsigned long long start_page = start / PAGE_SIZE;
+        unsigned long long end_page = end / PAGE_SIZE;
+
+        for (unsigned long long page = start_page; page <= end_page; page++)
+        {
+            unsigned long long offset = page * sizeof(unsigned long long);
+            unsigned long long data;
+
+            if (lseek(fd, offset, SEEK_SET) != offset)
             {
-                paddr_list_capacity *= 2;
-                paddr_list = (unsigned long long *)realloc(paddr_list, sizeof(unsigned long long) * paddr_list_capacity);
+                printf("Failed to seek %s\n", path);
+                exit(1);
             }
-            paddr_list[paddr_list_size++] = start;
+
+            if (read(fd, &data, sizeof(unsigned long long)) != sizeof(unsigned long long))
+            {
+                printf("Failed to read %s\n", path);
+                exit(1);
+            }
+
+            if (data & (1ULL << 63))
+            {
+                unsigned long long paddr = data & (((unsigned long long)1 << 55) - 1);
+                paddr *= PAGE_SIZE;
+
+                if (paddr_list_size >= paddr_list_capacity)
+                {
+                    paddr_list_capacity *= 2;
+                    paddr_list = (paddr *)realloc(paddr_list, sizeof(paddr) * paddr_list_capacity);
+                }
+                paddr_list[paddr_list_size].start = paddr;
+                paddr_list[paddr_list_size++].end = paddr + PAGE_SIZE;
+            }
         }
     }
 
-    //---------------------------------------------
-    fclose(mapf);
-
     return paddr_list;
+}
+
+// Main function
+int main(int argc, char *argv[])
+{
+    // Get the memory size and number of pages
+    get_memory_size();
+    get_num_of_pages();
+
+    // Get the current pid list
+    int *pid_list = get_pid_list();
+    int pid_list_size = sizeof(pid_list) / sizeof(int);
+
+    return 0;
 }
