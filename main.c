@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <sys/sysinfo.h>
+#include <dirent.h>
 
 unsigned long long MEM_SIZE;
 unsigned long long PAGE_SIZE;
@@ -15,49 +17,26 @@ unsigned long long PHYS_PAGES;
 #define PAGE_MASK 0xfffff000
 
 // We need to get the physical memory size
-// So we need to read the file /proc/meminfo
-// and get the size of physical memory
-// The file /proc/meminfo has the information of memory
-// and the first line is the total memory size
-// So we need to read the first line and get the size of memory
-// The size of memory is in the unit of KB
-// So we need to convert the size of memory to the unit of byte
-// and return the size of memory
 
 #define MEMINFO_PATH "/proc/meminfo"
 
 void get_memory_size(void)
 {
-    FILE *fp;
-    char buf[256];
-    char *ptr;
-    unsigned long long mem_size;
+    struct sysinfo info;
 
-    fp = fopen(MEMINFO_PATH, "r");
-    if (fp == NULL)
+    if (sysinfo(&info) == 0)
     {
-        printf("Failed to open the file %s\n", MEMINFO_PATH);
+        MEM_SIZE = info.totalram;
+    }
+    else
+    {
+        printf("Failed to get the memory size\n");
         exit(1);
     }
-
-    // read the first line
-    fgets(buf, sizeof(buf), fp);
-
-    // get the size of memory
-    ptr = strtok(buf, " ");
-    ptr = strtok(NULL, " ");
-    mem_size = atoi(ptr);
-
-    // convert the unit of memory size from KB to byte
-    mem_size = mem_size * 1024;
-
-    fclose(fp);
-
-    MEM_SIZE = mem_size;
-
     return;
 }
 
+// We need to get the number of pages
 void get_num_of_pages(void)
 {
 
@@ -92,41 +71,44 @@ void get_num_of_pages(void)
     return;
 }
 
-// We need to get the status of each page
-// So we need to read the file /proc/kpageflags
-// and get the status of each page
-// The file /proc/kpageflags has the information of each page
-// and the first line is the status of each page
-// So we need to read the first line and get the status of each page
-// The status of each page is in the unit of hex
-// So we need to convert the status of each page to the unit of binary
-// and return the status of each page
+// Get pid list from /proc
+// return the list of pid
 
-#define KPAGEFLAGS_PATH "/proc/kpageflags"
-
-unsigned long long get_page_status(unsigned long long num_of_pages)
+int *get_pid_list(void)
 {
-    FILE *fp;
-    char buf[256];
-    char *ptr;
-    unsigned long long page_status;
+    int *pid_list = NULL;
+    int pid_list_size = 0;
+    int pid_list_capacity = 1024;
 
-    fp = fopen(KPAGEFLAGS_PATH, "r");
-    if (fp == NULL)
+    pid_list = (int *)malloc(sizeof(int) * pid_list_capacity);
+
+    DIR *dir = NULL;
+    struct dirent *entry = NULL;
+
+    dir = opendir("/proc");
+    if (dir == NULL)
     {
-        printf("Failed to open the file %s\n", KPAGEFLAGS_PATH);
+        printf("Failed to open /proc\n");
         exit(1);
     }
 
-    // read the first line
-    fgets(buf, sizeof(buf), fp);
+    while ((entry = readdir(dir)) != NULL)
+    {
+        int pid = atoi(entry->d_name);
+        if (pid != 0)
+        {
+            if (pid_list_size >= pid_list_capacity)
+            {
+                pid_list_capacity *= 2;
+                pid_list = (int *)realloc(pid_list, sizeof(int) * pid_list_capacity);
+            }
+            pid_list[pid_list_size++] = pid;
+        }
+    }
 
-    // get the status of each page
-    ptr = strtok(buf, " ");
-    ptr = strtok(NULL, " ");
-    page_status = strtoull(ptr, NULL, 16);
+    closedir(dir);
 
-    fclose(fp);
+    pid_list = (int *)realloc(pid_list, sizeof(int) * pid_list_size);
 
-    return page_status;
+    return pid_list;
 }
