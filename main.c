@@ -112,3 +112,61 @@ int *get_pid_list(void)
 
     return pid_list;
 }
+
+// Get the page frame number of each pid from /proc/pid/maps
+// return the list of physical addresses
+
+typdef struct pfn
+{
+    unsigned long long start;
+    unsigned long long end;
+};
+
+unsigned long long *get_paddr_list(int pid)
+{
+
+    unsigned long long *paddr_list = NULL;
+    int paddr_list_size = 0;
+    int paddr_list_capacity = 1024;
+
+    paddr_list = (unsigned long long *)malloc(sizeof(unsigned long long) * paddr_list_capacity);
+
+    char path[1024];
+    sprintf(path, "/proc/%d/maps", pid);
+
+    FILE *mapf = fopen(path, "r");
+    if (mapf == NULL)
+    {
+        printf("Failed to open %s\n", path);
+        exit(1);
+    }
+
+    char line[1024];
+    while (fgets(line, sizeof(line), mapf) != NULL)
+    {
+        unsigned long long start, end;
+        char r, w, x, p;
+        int offset, dev_major, dev_minor, inode;
+        char pathname[1024];
+
+        int ret = sscanf(line, "%llx-%llx %c%c%c%c %x %x:%x %d %s\n",
+                         &start, &end, &r, &w, &x, &p,
+                         &offset, &dev_major, &dev_minor, &inode, pathname);
+
+        // There also can be no pathname , which inode is 0
+        if (ret == 11 || ret == 10)
+        {
+            if (paddr_list_size >= paddr_list_capacity)
+            {
+                paddr_list_capacity *= 2;
+                paddr_list = (unsigned long long *)realloc(paddr_list, sizeof(unsigned long long) * paddr_list_capacity);
+            }
+            paddr_list[paddr_list_size++] = start;
+        }
+    }
+
+    //---------------------------------------------
+    fclose(mapf);
+
+    return paddr_list;
+}
