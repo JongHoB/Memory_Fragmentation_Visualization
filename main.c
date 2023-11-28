@@ -265,7 +265,8 @@ int main(int argc, char *argv[])
     p_memory_capacity = pid_list_size;
     p_memory = (physical_memory *)malloc(sizeof(physical_memory) * p_memory_capacity);
 
-    // Get the virtual address list
+    // Get the physical memory information
+    // by using pid and virtual address
     for (int i = 0; i < pid_list_size; i++)
     {
         int pid = pid_list->pid_list[i];
