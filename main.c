@@ -94,7 +94,7 @@ pid_list *get_pid_list(void)
 
     while ((entry = readdir(dir)) != NULL)
     {
-        int pid = atoi(entry->d_name);
+        int pid = atoi(entry->d_name); // Get the pid from /proc
         if (pid != 0)
         {
             if (pid_list_size >= pid_list_capacity)
@@ -143,7 +143,7 @@ v_info *get_vaddr_list(int pid)
     while (fgets(line, sizeof(line), fp) != NULL)
     {
         unsigned long long start, end;
-        sscanf(line, "%llx-%llx", &start, &end);
+        sscanf(line, "%llx-%llx", &start, &end); // Get the virtual address from /proc/pid/maps
 
         if (vaddr_list_size >= vaddr_list_capacity)
         {
@@ -199,16 +199,16 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 
     for (int i = 0; i < vaddr_list_size; i++)
     {
-        unsigned long long start = vaddr_list[i].start;
+        unsigned long long start = vaddr_list[i].start; // Get the physical address from /proc/pid/pagemap
         unsigned long long end = vaddr_list[i].end;
 
-        unsigned long long start_page = start / PAGE_SIZE;
+        unsigned long long start_page = start / PAGE_SIZE; // Get the page from virtual address
         unsigned long long end_page = end / PAGE_SIZE;
 
         for (unsigned long long page = start_page; page <= end_page; page++)
         {
-            unsigned long long offset = page * sizeof(unsigned long long);
-            unsigned long long data;
+            unsigned long long offset = page * sizeof(unsigned long long); // Get the offset from page
+            unsigned long long data;                                       // Get the data from offset
 
             if (fseek(fp, offset, SEEK_SET) != 0)
             {
@@ -216,7 +216,7 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
                 exit(1);
             }
 
-            if (fread(&data, sizeof(unsigned long long), 1, fp) != 1)
+            if (fread(&data, sizeof(unsigned long long), 1, fp) != 1) //
             {
                 printf("Failed to read %s\n", path);
                 exit(1);
@@ -224,8 +224,8 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 
             if (data & (1ULL << 63)) // Check the page is present
             {
-                unsigned long long p_addr = data & (((unsigned long long)1 << 55) - 1);
-                p_addr *= PAGE_SIZE;
+                unsigned long long p_addr = data & (((unsigned long long)1 << 55) - 1); // 55/64 bit is physical address
+                p_addr *= PAGE_SIZE;                                                    // Get the physical address from data
 
                 if (paddr_list_size >= paddr_list_capacity)
                 {
