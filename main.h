@@ -23,16 +23,15 @@ typedef struct _v_info
     unsigned long long vaddr_list_size;
 } v_info;
 
-typedef struct _paddr
+typedef struct _pfn
 {
-    unsigned long long start;
-    unsigned long long end;
-} paddr;
+    unsigned long long number;
+} pfn;
 
 typedef struct _p_info
 {
-    paddr *paddr_list;
-    unsigned long long paddr_list_size;
+    pfn *pfn_list;
+    unsigned long long pfn_list_size;
 } p_info;
 
 typedef struct _physical_memory

@@ -15,7 +15,7 @@
 unsigned long long MEM_SIZE;
 unsigned long long PAGE_SIZE;
 unsigned long long PHYS_PAGES;
-#define PAGE_MASK 0xfffff000
+// page mask for 64bit architecture
 
 // We need to get the physical memory size
 
@@ -121,7 +121,7 @@ pid_list *get_pid_list(void)
 
 v_info *get_vaddr_list(int pid)
 {
-    v_info *vainfo = (v_info *)malloc(sizeof(v_info));
+    v_info *vainfo = (v_info *)malloc(sizeof(v_info)); // v_info structure has vaddr_list and vaddr_list_size
     vaddr *vaddr_list = NULL;
     unsigned long long vaddr_list_size = 0;
     unsigned long long vaddr_list_capacity = 1024;
@@ -173,17 +173,17 @@ OUT:
     return vainfo;
 }
 
-// Get the Physical address from /proc/pid/pagemap
-// return the list of physical address
+// Get the physical page frame numbers from /proc/pid/pagemap
+// return the list of physical frame number
 
-p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
+p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 {
-    p_info *pinfo = (p_info *)malloc(sizeof(p_info));
-    paddr *paddr_list = NULL;
-    unsigned long long paddr_list_size = 0;
-    unsigned long long paddr_list_capacity = 1024;
+    p_info *pinfo = (p_info *)malloc(sizeof(p_info)); // p_info structure has pfn_list and pfn_list_size
+    pfn *pfn_list = NULL;
+    unsigned long long pfn_list_size = 0;
+    unsigned long long pfn_list_capacity = 1024;
 
-    paddr_list = (paddr *)malloc(sizeof(paddr) * paddr_list_capacity);
+    pfn_list = (pfn *)malloc(sizeof(pfn) * pfn_list_capacity);
 
     char path[1024];
     sprintf(path, "/proc/%d/pagemap", pid);
@@ -192,17 +192,17 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
     if (fp == NULL)
     {
         printf("Failed to open %s\n", path);
-        free(paddr_list);
-        pinfo->paddr_list_size = 0;
+        free(pfn_list);
+        pinfo->pfn_list_size = 0;
         return pinfo;
     }
 
     for (int i = 0; i < vaddr_list_size; i++)
     {
-        unsigned long long start = vaddr_list[i].start; // Get the physical address from /proc/pid/pagemap
+        unsigned long long start = vaddr_list[i].start;
         unsigned long long end = vaddr_list[i].end;
 
-        unsigned long long start_page = start / PAGE_SIZE; // Get the page from virtual address
+        unsigned long long start_page = start / PAGE_SIZE; // Get the virtual page number from virtual address
         unsigned long long end_page = end / PAGE_SIZE;
 
         for (unsigned long long page = start_page; page <= end_page; page++)
@@ -225,26 +225,24 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 
             if (data & (1ULL << 63)) // Check the page is present
             {
-                unsigned long long p_addr = data & (((unsigned long long)1 << 55) - 1); // 55/64 bit is physical address
-                p_addr *= PAGE_SIZE;                                                    // Get the physical address from data
+                unsigned long long p_num = data & (((unsigned long long)1 << 55) - 1); // 55/64 bit is page frame number
 
-                if (paddr_list_size >= paddr_list_capacity)
+                if (pfn_list_size >= pfn_list_capacity)
                 {
-                    paddr_list_capacity *= 2;
-                    paddr_list = (paddr *)realloc(paddr_list, sizeof(paddr) * paddr_list_capacity);
+                    pfn_list_capacity *= 2;
+                    pfn_list = (pfn *)realloc(pfn_list, sizeof(pfn) * pfn_list_capacity);
                 }
-                paddr_list[paddr_list_size].start = p_addr;
-                paddr_list[paddr_list_size++].end = p_addr + PAGE_SIZE;
+                pfn_list[pfn_list_size].number = p_num;
             }
         }
     }
 
     fclose(fp);
 
-    paddr_list = (paddr *)realloc(paddr_list, sizeof(paddr) * paddr_list_size);
+    pfn_list = (pfn *)realloc(pfn_list, sizeof(pfn) * pfn_list_size);
 
-    pinfo->paddr_list = paddr_list;
-    pinfo->paddr_list_size = paddr_list_size;
+    pinfo->pfn_list = pfn_list;
+    pinfo->pfn_list_size = pfn_list_size;
 
     return pinfo;
 }
@@ -252,7 +250,7 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 // Main function
 int main(int argc, char *argv[])
 {
-    physical_memory *p_memory = NULL;
+    physical_memory *p_memory = NULL; // physical_memory structure has pid and pinfo
     unsigned long long p_memory_size = 0;
     unsigned long long p_memory_capacity = 0;
 
@@ -273,15 +271,16 @@ int main(int argc, char *argv[])
         int pid = pid_list->pid_list[i];
         v_info *vaddr_list = get_vaddr_list(pid);
 
-        // Get the physical address list
         if (vaddr_list->vaddr_list_size == 0)
         {
             continue;
         }
-        p_info *paddr_list = get_paddr_list(pid, vaddr_list->vaddr_list, vaddr_list->vaddr_list_size);
+
+        // Get the physical frame number list
+        p_info *pfn_list = get_pfn_list(pid, vaddr_list->vaddr_list, vaddr_list->vaddr_list_size);
 
         p_memory[p_memory_size].pid = pid;
-        p_memory[p_memory_size++].pinfo = paddr_list;
+        p_memory[p_memory_size++].pinfo = pfn_list;
     }
 
     p_memory = (physical_memory *)realloc(p_memory, sizeof(physical_memory) * p_memory_size);
