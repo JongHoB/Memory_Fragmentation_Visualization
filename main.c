@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <sys/sysinfo.h>
 #include <dirent.h>
+#include "main.h"
 
 unsigned long long MEM_SIZE;
 unsigned long long PAGE_SIZE;
@@ -72,8 +73,9 @@ void get_num_of_pages(void)
 // Get pid list from /proc
 // return the list of pid
 
-int *get_pid_list(void)
+pid_list *get_pid_list(void)
 {
+    pid_list *p_list = (pid_list *)malloc(sizeof(p_list));
     int *pid_list = NULL;
     int pid_list_size = 0;
     int pid_list_capacity = 1024;
@@ -108,23 +110,21 @@ int *get_pid_list(void)
 
     pid_list = (int *)realloc(pid_list, sizeof(int) * pid_list_size);
 
-    return pid_list;
+    p_list->size = pid_list_size;
+    p_list->pid_list = pid_list;
+
+    return p_list;
 }
 
 // Get the Virtual address from /proc/pid/maps
 // return the list of virtual address
 
-typedef struct _vaddr
+v_info *get_vaddr_list(int pid)
 {
-    unsigned long long start;
-    unsigned long long end;
-} vaddr;
-
-vaddr *get_vaddr_list(int pid)
-{
+    v_info *vainfo = (v_info *)malloc(sizeof(v_info));
     vaddr *vaddr_list = NULL;
-    int vaddr_list_size = 0;
-    int vaddr_list_capacity = 1024;
+    unsigned long long vaddr_list_size = 0;
+    unsigned long long vaddr_list_capacity = 1024;
 
     vaddr_list = (vaddr *)malloc(sizeof(vaddr) * vaddr_list_capacity);
 
@@ -157,23 +157,21 @@ vaddr *get_vaddr_list(int pid)
 
     vaddr_list = (vaddr *)realloc(vaddr_list, sizeof(vaddr) * vaddr_list_size);
 
-    return vaddr_list;
+    vainfo->vaddr_list = vaddr_list;
+    vainfo->vaddr_list_size = vaddr_list_size;
+
+    return vainfo;
 }
 
 // Get the Physical address from /proc/pid/pagemap
 // return the list of physical address
 
-typedef struct _paddr
+p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 {
-    unsigned long long start;
-    unsigned long long end;
-} paddr;
-
-paddr *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
-{
+    p_info *pinfo = (p_info *)malloc(sizeof(p_info));
     paddr *paddr_list = NULL;
-    int paddr_list_size = 0;
-    int paddr_list_capacity = 1024;
+    unsigned long long paddr_list_size = 0;
+    unsigned long long paddr_list_capacity = 1024;
 
     paddr_list = (paddr *)malloc(sizeof(paddr) * paddr_list_capacity);
 
@@ -228,7 +226,14 @@ paddr *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
         }
     }
 
-    return paddr_list;
+    close(fd);
+
+    paddr_list = (paddr *)realloc(paddr_list, sizeof(paddr) * paddr_list_size);
+
+    pinfo->paddr_list = paddr_list;
+    pinfo->paddr_list_size = paddr_list_size;
+
+    return pinfo;
 }
 
 // Main function
@@ -239,27 +244,22 @@ int main(int argc, char *argv[])
     get_num_of_pages();
 
     // Get the current pid list
-    int *pid_list = get_pid_list();
-    int pid_list_size = sizeof(pid_list) / sizeof(int);
+    pid_list *pid_list = get_pid_list();
+    unsigned long long pid_list_size = pid_list->size;
 
     // Get the virtual address list
     for (int i = 0; i < pid_list_size; i++)
     {
-        int pid = pid_list[i];
-        vaddr *vaddr_list = get_vaddr_list(pid);
-        int vaddr_list_size = sizeof(vaddr_list) / sizeof(vaddr);
+        int pid = pid_list->pid_list[i];
+        v_info *vaddr_list = get_vaddr_list(pid);
 
         // Get the physical address list
-        paddr *paddr_list = get_paddr_list(pid, vaddr_list, vaddr_list_size);
-        int paddr_list_size = sizeof(paddr_list) / sizeof(paddr);
-
-        // Print the result
-        printf("pid: %d\n", pid);
-        for (int j = 0; j < paddr_list_size; j++)
+        if (vaddr_list->vaddr_list_size == 0)
         {
-            printf("start: %llx, end: %llx\n", paddr_list[j].start, paddr_list[j].end);
+            continue;
         }
-        printf("\n");
+        p_info *paddr_list = get_paddr_list(pid, vaddr_list->vaddr_list, vaddr_list->vaddr_list_size);
+        printf("pid: %d\n size: %llu\n", pid, paddr_list->paddr_list_size);
     }
 
     return 0;
