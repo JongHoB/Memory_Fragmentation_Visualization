@@ -214,16 +214,16 @@ paddr *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 
             if (data & (1ULL << 63)) // Check the page is present
             {
-                unsigned long long paddr = data & (((unsigned long long)1 << 55) - 1);
-                paddr *= PAGE_SIZE;
+                unsigned long long p_addr = data & (((unsigned long long)1 << 55) - 1);
+                p_addr *= PAGE_SIZE;
 
                 if (paddr_list_size >= paddr_list_capacity)
                 {
                     paddr_list_capacity *= 2;
                     paddr_list = (paddr *)realloc(paddr_list, sizeof(paddr) * paddr_list_capacity);
                 }
-                paddr_list[paddr_list_size].start = paddr;
-                paddr_list[paddr_list_size++].end = paddr + PAGE_SIZE;
+                paddr_list[paddr_list_size].start = p_addr;
+                paddr_list[paddr_list_size++].end = p_addr + PAGE_SIZE;
             }
         }
     }
