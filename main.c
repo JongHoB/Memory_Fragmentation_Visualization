@@ -227,6 +227,14 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
             {
                 unsigned long long p_num = data & (((unsigned long long)1 << 55) - 1); // 55/64 bit is page frame number
 
+		// pfn could exceed the range of PHYS_PAGES
+		// pfn could be not in the region of SYSTEM_RAM
+		// like I/O....
+		if(p_num >= PHYS_PAGES)
+		{
+			continue;
+		}
+
                 if (pfn_list_size >= pfn_list_capacity)
                 {
                     pfn_list_capacity *= 2;
