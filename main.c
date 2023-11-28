@@ -18,8 +18,6 @@ unsigned long long PHYS_PAGES;
 
 // We need to get the physical memory size
 
-#define MEMINFO_PATH "/proc/meminfo"
-
 void get_memory_size(void)
 {
     struct sysinfo info;
@@ -214,7 +212,7 @@ paddr *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
                 exit(1);
             }
 
-            if (data & (1ULL << 63))
+            if (data & (1ULL << 63)) // Check the page is present
             {
                 unsigned long long paddr = data & (((unsigned long long)1 << 55) - 1);
                 paddr *= PAGE_SIZE;
@@ -243,6 +241,26 @@ int main(int argc, char *argv[])
     // Get the current pid list
     int *pid_list = get_pid_list();
     int pid_list_size = sizeof(pid_list) / sizeof(int);
+
+    // Get the virtual address list
+    for (int i = 0; i < pid_list_size; i++)
+    {
+        int pid = pid_list[i];
+        vaddr *vaddr_list = get_vaddr_list(pid);
+        int vaddr_list_size = sizeof(vaddr_list) / sizeof(vaddr);
+
+        // Get the physical address list
+        paddr *paddr_list = get_paddr_list(pid, vaddr_list, vaddr_list_size);
+        int paddr_list_size = sizeof(paddr_list) / sizeof(paddr);
+
+        // Print the result
+        printf("pid: %d\n", pid);
+        for (int j = 0; j < paddr_list_size; j++)
+        {
+            printf("start: %llx, end: %llx\n", paddr_list[j].start, paddr_list[j].end);
+        }
+        printf("\n");
+    }
 
     return 0;
 }
