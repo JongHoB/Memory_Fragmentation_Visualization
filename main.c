@@ -218,8 +218,8 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 
             if (fread(&data, sizeof(unsigned long long), 1, fp) != 1) //
             {
-                printf("Failed to read pid:%d offset: %lld in %s\n", pid, offset, path); // MAYBE REGION OF VSYSCALL OR SOMETHING CANNOT BE READ
-
+                // MAYBE REGION OF VSYSCALL OR SOMETHING CANNOT BE READ
+                // printf("Failed to read pid:%d offset: %lld in %s\n", pid, offset, path);
                 continue;
             }
 
@@ -272,7 +272,7 @@ int main(int argc, char *argv[])
             continue;
         }
         p_info *paddr_list = get_paddr_list(pid, vaddr_list->vaddr_list, vaddr_list->vaddr_list_size);
-        printf("pid: %d\n size: %llu\n", pid, paddr_list->paddr_list_size);
+        printf("pid: %d size: %llu\n", pid, paddr_list->paddr_list_size);
     }
 
     return 0;
