@@ -233,6 +233,7 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
                     pfn_list = (pfn *)realloc(pfn_list, sizeof(pfn) * pfn_list_capacity);
                 }
                 pfn_list[pfn_list_size].number = p_num;
+                printf("pfn: %lld\n", p_num);
             }
         }
     }
@@ -283,6 +284,7 @@ int main(int argc, char *argv[])
         p_memory[p_memory_size].pid = pid;
         p_memory[p_memory_size++].pinfo = pfn_list;
     }
+    printf("PAGES NUMBERS: %lld\n", PHYS_PAGES);
 
     p_memory = (physical_memory *)realloc(p_memory, sizeof(physical_memory) * p_memory_size);
 
