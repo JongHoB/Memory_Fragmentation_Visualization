@@ -218,8 +218,9 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 
             if (fread(&data, sizeof(unsigned long long), 1, fp) != 1) //
             {
-                printf("Failed to read %s\n", path);
-                exit(1);
+                printf("Failed to read pid:%d offset: %lld in %s\n", pid, offset, path); // MAYBE REGION OF VSYSCALL OR SOMETHING CANNOT BE READ
+
+                continue;
             }
 
             if (data & (1ULL << 63)) // Check the page is present
