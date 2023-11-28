@@ -135,7 +135,8 @@ v_info *get_vaddr_list(int pid)
     if (fp == NULL)
     {
         printf("Failed to open %s\n", path);
-        exit(1);
+        vaddr_list_size = 0;
+        goto OUT;
     }
 
     char line[1024];
@@ -155,10 +156,19 @@ v_info *get_vaddr_list(int pid)
 
     fclose(fp);
 
-    vaddr_list = (vaddr *)realloc(vaddr_list, sizeof(vaddr) * vaddr_list_size);
+OUT:
+    if (vaddr_list_size == 0)
+    {
+        free(vaddr_list);
+        vainfo->vaddr_list_size = 0;
+    }
+    else
+    {
+        vaddr_list = (vaddr *)realloc(vaddr_list, sizeof(vaddr) * vaddr_list_size);
 
-    vainfo->vaddr_list = vaddr_list;
-    vainfo->vaddr_list_size = vaddr_list_size;
+        vainfo->vaddr_list = vaddr_list;
+        vainfo->vaddr_list_size = vaddr_list_size;
+    }
 
     return vainfo;
 }
@@ -178,11 +188,13 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
     char path[1024];
     sprintf(path, "/proc/%d/pagemap", pid);
 
-    int fd = open(path, O_RDONLY);
-    if (fd < 0)
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL)
     {
         printf("Failed to open %s\n", path);
-        exit(1);
+        free(paddr_list);
+        pinfo->paddr_list_size = 0;
+        return pinfo;
     }
 
     for (int i = 0; i < vaddr_list_size; i++)
@@ -198,13 +210,13 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
             unsigned long long offset = page * sizeof(unsigned long long);
             unsigned long long data;
 
-            if (lseek(fd, offset, SEEK_SET) != offset)
+            if (fseek(fp, offset, SEEK_SET) != 0)
             {
                 printf("Failed to seek %s\n", path);
                 exit(1);
             }
 
-            if (read(fd, &data, sizeof(unsigned long long)) != sizeof(unsigned long long))
+            if (fread(&data, sizeof(unsigned long long), 1, fp) != 1)
             {
                 printf("Failed to read %s\n", path);
                 exit(1);
@@ -226,7 +238,7 @@ p_info *get_paddr_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
         }
     }
 
-    close(fd);
+    fclose(fp);
 
     paddr_list = (paddr *)realloc(paddr_list, sizeof(paddr) * paddr_list_size);
 
