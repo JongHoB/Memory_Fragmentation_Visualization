@@ -34,3 +34,9 @@ typedef struct _p_info
     paddr *paddr_list;
     unsigned long long paddr_list_size;
 } p_info;
+
+typedef struct _physical_memory
+{
+    int pid;
+    p_info *pinfo;
+} physical_memory;
