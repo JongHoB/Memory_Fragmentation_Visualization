@@ -240,8 +240,7 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
                     pfn_list_capacity *= 2;
                     pfn_list = (pfn *)realloc(pfn_list, sizeof(pfn) * pfn_list_capacity);
                 }
-                pfn_list[pfn_list_size].number = p_num;
-                printf("pfn: %lld\n", p_num);
+                pfn_list[pfn_list_size++].number = p_num;
             }
         }
     }
@@ -386,28 +385,30 @@ int main(int argc, char *argv[])
     nr_free_pages = count_free_pages();
 
     // Print the bitmap
-    for (int i = 0; i < bitmap_size; i++)
-    {
-        for (int j = 0; j < 64; j++)
-        {
-            if (i == bitmap_size - 1 && j == bitmap_last_size)
-            {
-                break;
-            }
-            if (bitmap[i] & (1ULL << j))
-            {
-                printf("1");
-            }
-            else
-            {
-                printf("0");
-            }
-        }
-        printf("\n");
-    }
+    // for (int i = 0; i < bitmap_size; i++)
+    // {
+    //     for (int j = 0; j < 64; j++)
+    //     {
+    //         if (i == bitmap_size - 1 && j == bitmap_last_size)
+    //         {
+    //             break;
+    //         }
+    //         if (bitmap[i] & (1ULL << j))
+    //         {
+    //             printf("1");
+    //         }
+    //         else
+    //         {
+    //             printf("0");
+    //         }
+    //     }
+    //     printf("\n");
+    // }
 
     // Print the error rate %
     printf("ERROR RATE: %f\n", (double)(total_free_pages - nr_free_pages) / nr_free_pages * 100);
+    printf("TOTAL FREE PAGES: %lld\n", total_free_pages);
+    printf("NR_FREE_PAGES: %lld\n", nr_free_pages);
 
     return 0;
 }
