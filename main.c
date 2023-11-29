@@ -17,6 +17,8 @@ unsigned long long PAGE_SIZE;
 unsigned long long PHYS_PAGES;
 // page mask for 64bit architecture
 
+unsigned long long temp = 0;
+
 // We need to get the physical memory size
 
 void get_memory_size(void)
@@ -232,6 +234,7 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
                 // like I/O....
                 if (p_num >= PHYS_PAGES)
                 {
+                    temp++;
                     continue;
                 }
 
@@ -409,6 +412,7 @@ int main(int argc, char *argv[])
     printf("ERROR RATE: %f\n", (double)(total_free_pages - nr_free_pages) / nr_free_pages * 100);
     printf("TOTAL FREE PAGES: %lld\n", total_free_pages);
     printf("NR_FREE_PAGES: %lld\n", nr_free_pages);
+    printf("TEMP: %lld\n", temp);
 
     return 0;
 }
