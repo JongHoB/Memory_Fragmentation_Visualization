@@ -18,6 +18,7 @@ unsigned long long PHYS_PAGES;
 // page mask for 64bit architecture
 
 unsigned long long temp = 0;
+unsigned long long shared = 0;
 
 // We need to get the physical memory size
 
@@ -274,6 +275,11 @@ int free_pages_and_bitmap(physical_memory *p_memory, unsigned long long p_memory
             unsigned long long index = pfn / 64;
             unsigned long long offset = pfn % 64;
 
+            if (bitmap[index] & (1ULL << offset))
+            {
+                shared++;
+            }
+
             bitmap[index] |= (1ULL << offset);
 
             used_pages++;
@@ -413,6 +419,7 @@ int main(int argc, char *argv[])
     printf("TOTAL FREE PAGES: %lld\n", total_free_pages);
     printf("NR_FREE_PAGES: %lld\n", nr_free_pages);
     printf("TEMP: %lld\n", temp);
+    printf("SHARED: %lld\n", shared);
 
     return 0;
 }
