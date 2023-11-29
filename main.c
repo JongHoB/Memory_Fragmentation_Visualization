@@ -324,15 +324,16 @@ unsigned long long count_free_pages(void)
 
 // Make image file using bitmap
 // each page is represented by 1 pixel
+// gray scale
 // the color of pixel is black or white
 // 0: used, 255: out of range, 150: free
-// image size is 8192 * 8192
+// image size is 1024*1024
 // image name is current time.bmp
 
 void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsigned long long bitmap_last_size)
 {
-    unsigned char *image = (unsigned char *)malloc(sizeof(unsigned char) * 8192 * 8192 * 3);
-    memset(image, 255, sizeof(unsigned char) * 8192 * 8192 * 3);
+    unsigned char *image = (unsigned char *)malloc(sizeof(unsigned char) * 1024 * 1024);
+    memset(image, 255, sizeof(unsigned char) * 1024 * 1024);
 
     for (int i = 0; i < bitmap_size; i++)
     {
@@ -344,15 +345,11 @@ void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsi
             }
             if (bitmap[i] & (1ULL << j))
             {
-                image[(i * 64 + j) * 3] = 0;
-                image[(i * 64 + j) * 3 + 1] = 0;
-                image[(i * 64 + j) * 3 + 2] = 0;
+                image[i * 64 + j] = 0;
             }
             else
             {
-                image[(i * 64 + j) * 3] = 150;
-                image[(i * 64 + j) * 3 + 1] = 150;
-                image[(i * 64 + j) * 3 + 2] = 150;
+                image[i * 64 + j] = 150;
             }
         }
     }
@@ -390,31 +387,31 @@ void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsi
         0, 0, 0, 0   // important colors
     };
 
-    unsigned long long file_size = 54 + 8192 * 8192 * 3;
-    unsigned long long data_size = 8192 * 8192 * 3;
+    unsigned long long file_size = 54 + 1024 * 1024;
+    unsigned long long data_size = 1024 * 1024;
 
     header[2] = (unsigned char)(file_size & 0x000000ff);
     header[3] = (file_size >> 8) & 0x000000ff;
     header[4] = (file_size >> 16) & 0x000000ff;
     header[5] = (file_size >> 24) & 0x000000ff;
 
-    header[18] = 8192 & 0x000000ff;
-    header[19] = (8192 >> 8) & 0x000000ff;
-    header[20] = (8192 >> 16) & 0x000000ff;
-    header[21] = (8192 >> 24) & 0x000000ff;
+    header[18] = (unsigned char)(1024 & 0x000000ff);
+    header[19] = (1024 >> 8) & 0x000000ff;
+    header[20] = (1024 >> 16) & 0x000000ff;
+    header[21] = (1024 >> 24) & 0x000000ff;
 
-    header[22] = 8192 & 0x000000ff;
-    header[23] = (8192 >> 8) & 0x000000ff;
-    header[24] = (8192 >> 16) & 0x000000ff;
-    header[25] = (8192 >> 24) & 0x000000ff;
+    header[22] = (unsigned char)(1024 & 0x000000ff);
+    header[23] = (1024 >> 8) & 0x000000ff;
+    header[24] = (1024 >> 16) & 0x000000ff;
+    header[25] = (1024 >> 24) & 0x000000ff;
 
-    header[34] = data_size & 0x000000ff;
+    header[34] = (unsigned char)(data_size & 0x000000ff);
     header[35] = (data_size >> 8) & 0x000000ff;
     header[36] = (data_size >> 16) & 0x000000ff;
     header[37] = (data_size >> 24) & 0x000000ff;
 
     fwrite(header, sizeof(unsigned char), 54, fp);
-    fwrite(image, sizeof(unsigned char), 8192 * 8192 * 3, fp);
+    fwrite(image, sizeof(unsigned char), 1024 * 1024, fp);
 
     fclose(fp);
 
