@@ -326,13 +326,13 @@ unsigned long long count_free_pages(void)
 // each page is represented by 1 pixel
 // the color of pixel is black or white
 // 0: used, 255: out of range, 150: free
-// image size is 2048 * 2048
+// image size is 4096 * 4096
 // image name is current time.bmp
 
 void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsigned long long bitmap_last_size)
 {
-    unsigned char *image = (unsigned char *)malloc(sizeof(unsigned char) * 2048 * 2048);
-    memset(image, 255, sizeof(unsigned char) * 2048 * 2048);
+    unsigned char *image = (unsigned char *)malloc(sizeof(unsigned char) * 4096 * 4096);
+    memset(image, 255, sizeof(unsigned char) * 4096 * 4096);
 
     for (int i = 0; i < bitmap_size; i++)
     {
@@ -386,26 +386,26 @@ void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsi
         0, 0, 0, 0   // important colors
     };
 
-    unsigned long long file_size = 54 + 2048 * 2048 * 3;
+    unsigned long long file_size = 54 + 4096 * 4096 * 3;
     header[2] = (unsigned char)(file_size & 0x000000ff);
     header[3] = (file_size >> 8) & 0x000000ff;
     header[4] = (file_size >> 16) & 0x000000ff;
     header[5] = (file_size >> 24) & 0x000000ff;
 
-    unsigned long long width = 2048;
+    unsigned long long width = 4096;
     header[18] = width & 0x000000ff;
     header[19] = (width >> 8) & 0x000000ff;
     header[20] = (width >> 16) & 0x000000ff;
     header[21] = (width >> 24) & 0x000000ff;
 
-    unsigned long long height = 2048;
+    unsigned long long height = 4096;
     header[22] = height & 0x000000ff;
     header[23] = (height >> 8) & 0x000000ff;
     header[24] = (height >> 16) & 0x000000ff;
     header[25] = (height >> 24) & 0x000000ff;
 
     fwrite(header, sizeof(unsigned char), 54, fp);
-    fwrite(image, sizeof(unsigned char), 2048 * 2048 * 3, fp);
+    fwrite(image, sizeof(unsigned char), 4096 * 4096 * 3, fp);
 
     fclose(fp);
 
