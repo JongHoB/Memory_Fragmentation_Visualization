@@ -227,13 +227,13 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
             {
                 unsigned long long p_num = data & (((unsigned long long)1 << 55) - 1); // 55/64 bit is page frame number
 
-		// pfn could exceed the range of PHYS_PAGES
-		// pfn could be not in the region of SYSTEM_RAM
-		// like I/O....
-		if(p_num >= PHYS_PAGES)
-		{
-			continue;
-		}
+                // pfn could exceed the range of PHYS_PAGES
+                // pfn could be not in the region of SYSTEM_RAM
+                // like I/O....
+                if (p_num >= PHYS_PAGES)
+                {
+                    continue;
+                }
 
                 if (pfn_list_size >= pfn_list_capacity)
                 {
@@ -256,12 +256,71 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
     return pinfo;
 }
 
+// Set the bitmap and return the free pages number
+int free_pages_and_bitmap(physical_memory *p_memory, unsigned long long p_memory_size, unsigned long long *bitmap)
+{
+    unsigned long long used_pages = 0;
+    // Set the bitmap
+    for (int i = 0; i < p_memory_size; i++)
+    {
+        p_info *pfn_list = p_memory[i].pinfo;
+        unsigned long long pfn_list_size = pfn_list->pfn_list_size;
+
+        for (int j = 0; j < pfn_list_size; j++)
+        {
+            unsigned long long pfn = pfn_list->pfn_list[j].number;
+            unsigned long long index = pfn / 64;
+            unsigned long long offset = pfn % 64;
+
+            bitmap[index] |= (1ULL << offset);
+
+            used_pages++;
+        }
+    }
+
+    return PHYS_PAGES - used_pages;
+}
+
+// Get the free pages in /proc/vmstat
+// return the free pages number
+
+unsigned long long count_free_pages(void)
+{
+    unsigned long long nr_free_pages = 0;
+
+    char path[1024];
+    sprintf(path, "/proc/vmstat");
+
+    FILE *fp = fopen(path, "r");
+    if (fp == NULL)
+    {
+        printf("Failed to open %s\n", path);
+        exit(1);
+    }
+
+    char line[1024];
+    while (fgets(line, sizeof(line), fp) != NULL)
+    {
+        if (strncmp(line, "nr_free_pages", 13) == 0)
+        {
+            sscanf(line, "%*s %lld", &nr_free_pages);
+            break;
+        }
+    }
+
+    fclose(fp);
+
+    return nr_free_pages;
+}
+
 // Main function
 int main(int argc, char *argv[])
 {
     physical_memory *p_memory = NULL; // physical_memory structure has pid and pinfo
     unsigned long long p_memory_size = 0;
     unsigned long long p_memory_capacity = 0;
+
+    unsigned long long total_free_pages;
 
     // Get the memory size and number of pages
     get_memory_size();
@@ -295,6 +354,60 @@ int main(int argc, char *argv[])
     printf("PAGES NUMBERS: %lld\n", PHYS_PAGES);
 
     p_memory = (physical_memory *)realloc(p_memory, sizeof(physical_memory) * p_memory_size);
+
+    // Print the physical memory status
+    // by using physical frame number
+
+    // We need to make the bitmap
+    // to represent the physical memory status
+    // 0: free, 1: used
+
+    // We need to make the bitmap size
+    // by using PHYS_PAGES
+    // 1 bit represent 1 page
+    // 1 byte represent 8 pages
+    // 1 unsigned long long represent 64 pages
+
+    // So we need to make the bitmap size
+    // by using PHYS_PAGES / 64
+    unsigned long long bitmap_size = (PHYS_PAGES / 64) + 1;
+    unsigned long long bitmap_last_size = PHYS_PAGES % 64;
+    unsigned long long *bitmap = (unsigned long long *)malloc(sizeof(unsigned long long) * bitmap_size);
+    memset(bitmap, 0, sizeof(unsigned long long) * bitmap_size);
+
+    // Get the free pages number and make the bitmap
+    total_free_pages = free_pages_and_bitmap(p_memory, p_memory_size, bitmap);
+
+    unsigned long long nr_free_pages = 0;
+
+    // Count the error rate
+    // using /proc/vmstat
+    // first line nr_free_pages
+    nr_free_pages = count_free_pages();
+
+    // Print the bitmap
+    for (int i = 0; i < bitmap_size; i++)
+    {
+        for (int j = 0; j < 64; j++)
+        {
+            if (i == bitmap_size - 1 && j == bitmap_last_size)
+            {
+                break;
+            }
+            if (bitmap[i] & (1ULL << j))
+            {
+                printf("1");
+            }
+            else
+            {
+                printf("0");
+            }
+        }
+        printf("\n");
+    }
+
+    // Print the error rate %
+    printf("ERROR RATE: %f\n", (double)(total_free_pages - nr_free_pages) / nr_free_pages * 100);
 
     return 0;
 }
