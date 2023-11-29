@@ -10,6 +10,7 @@
 #include <sys/mman.h>
 #include <sys/sysinfo.h>
 #include <dirent.h>
+#include <time.h>
 #include "main.h"
 
 unsigned long long MEM_SIZE;
@@ -321,6 +322,98 @@ unsigned long long count_free_pages(void)
     return nr_free_pages;
 }
 
+// Make image file using bitmap
+// each page is represented by 1 pixel
+// the color of pixel is black or white
+// 0: used, 255: out of range, 150: free
+// image size is 2048 * 2048
+// image name is current time.bmp
+
+void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsigned long long bitmap_last_size)
+{
+    unsigned char *image = (unsigned char *)malloc(sizeof(unsigned char) * 2048 * 2048);
+    memset(image, 255, sizeof(unsigned char) * 2048 * 2048);
+
+    for (int i = 0; i < bitmap_size; i++)
+    {
+        for (int j = 0; j < 64; j++)
+        {
+            if (i == bitmap_size - 1 && j == bitmap_last_size)
+            {
+                break;
+            }
+            if (bitmap[i] & (1ULL << j))
+            {
+                image[i * 64 + j] = 0;
+            }
+            else
+            {
+                image[i * 64 + j] = 150;
+            }
+        }
+    }
+
+    time_t t = time(NULL);
+    struct tm tm = *localtime(&t);
+
+    char filename[1024];
+    sprintf(filename, "%d-%d-%d-%d-%d-%d.bmp", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, tm.tm_hour, tm.tm_min, tm.tm_sec);
+
+    FILE *fp = fopen(filename, "wb");
+    if (fp == NULL)
+    {
+        printf("Failed to open %s\n", filename);
+        exit(1);
+    }
+
+    unsigned char header[54] = {
+        0x42,        // identity : B
+        0x4d,        // identity : M
+        0, 0, 0, 0,  // file size
+        0, 0,        // reserved1
+        0, 0,        // reserved2
+        54, 0, 0, 0, // RGB data offset
+        40, 0, 0, 0, // struct BITMAPINFOHEADER size
+        0, 0, 0, 0,  // bmp width
+        0, 0, 0, 0,  // bmp height
+        1, 0,        // planes
+        24, 0,       // bit per pixel
+        0, 0, 0, 0,  // compression
+        0, 0, 0, 0,  // data size
+        0, 0, 0, 0,  // h resolution
+        0, 0, 0, 0,  // v resolution
+        0, 0, 0, 0,  // used colors
+        0, 0, 0, 0   // important colors
+    };
+
+    unsigned long long file_size = 54 + 2048 * 2048 * 3;
+    header[2] = (unsigned char)(file_size & 0x000000ff);
+    header[3] = (file_size >> 8) & 0x000000ff;
+    header[4] = (file_size >> 16) & 0x000000ff;
+    header[5] = (file_size >> 24) & 0x000000ff;
+
+    unsigned long long width = 2048;
+    header[18] = width & 0x000000ff;
+    header[19] = (width >> 8) & 0x000000ff;
+    header[20] = (width >> 16) & 0x000000ff;
+    header[21] = (width >> 24) & 0x000000ff;
+
+    unsigned long long height = 2048;
+    header[22] = height & 0x000000ff;
+    header[23] = (height >> 8) & 0x000000ff;
+    header[24] = (height >> 16) & 0x000000ff;
+    header[25] = (height >> 24) & 0x000000ff;
+
+    fwrite(header, sizeof(unsigned char), 54, fp);
+    fwrite(image, sizeof(unsigned char), 2048 * 2048 * 3, fp);
+
+    fclose(fp);
+
+    free(image);
+
+    return;
+}
+
 // Main function
 int main(int argc, char *argv[])
 {
@@ -420,6 +513,20 @@ int main(int argc, char *argv[])
     printf("NR_FREE_PAGES: %lld\n", nr_free_pages);
     printf("TEMP: %lld\n", temp);
     printf("SHARED: %lld\n", shared);
+
+    // Make the image file
+    make_image(bitmap, bitmap_size, bitmap_last_size);
+
+    // Free the memory
+    free(bitmap);
+    // for (int i = 0; i < p_memory_size; i++)
+    // {
+    //     free(p_memory[i].pinfo->pfn_list);
+    //     free(p_memory[i].pinfo);
+    // }
+    // free(p_memory);
+    // free(pid_list->pid_list);
+    // free(pid_list);
 
     return 0;
 }
