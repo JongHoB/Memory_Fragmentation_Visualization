@@ -457,12 +457,6 @@ int main(int argc, char *argv[])
     get_memory_size();
     get_num_of_pages();
 
-    // Count the error rate
-    // using /proc/vmstat
-    // first line nr_free_pages
-    unsigned long long nr_free_pages = 0;
-    nr_free_pages = count_free_pages();
-
     // Get the current pid list
     pid_list *pid_list = get_pid_list();
     unsigned long long pid_list_size = pid_list->size;
@@ -473,6 +467,12 @@ int main(int argc, char *argv[])
     // by using pid and virtual address
     p_memory = get_phys_mem_infos(pid_list, pid_list_size, &p_memory_size, &p_memory_capacity);
     p_memory = (physical_memory *)realloc(p_memory, sizeof(physical_memory) * p_memory_size);
+
+    // Count the error rate
+    // using /proc/vmstat
+    // first line nr_free_pages
+    unsigned long long nr_free_pages = 0;
+    nr_free_pages = count_free_pages();
 
     // Print the physical memory status
     // by using physical frame number
