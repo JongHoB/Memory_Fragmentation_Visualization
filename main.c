@@ -279,6 +279,7 @@ int get_free_pages_num_and_set_bitmap(physical_memory *p_memory, unsigned long l
             if (bitmap[index] & (1ULL << offset))
             {
                 shared++;
+                used_pages--;
             }
 
             bitmap[index] |= (1ULL << offset);
@@ -527,9 +528,12 @@ int main(int argc, char *argv[])
     // }
 
     // Print the error rate %
-    printf("PAGES NUMBERS: %lld\n", PHYS_PAGES);
+    printf("TOTAL PAGES NUMBERS: %lld\n", PHYS_PAGES);
     printf("ERROR RATE: %f\n", (double)(total_free_pages - nr_free_pages) / nr_free_pages * 100);
-    printf("TOTAL FREE PAGES: %lld\n", total_free_pages);
+    printf("ERROR PAGES: %lld\n", total_free_pages - nr_free_pages);
+    printf("ERROR MB: %fMB\n", (double)(total_free_pages - nr_free_pages) * PAGE_SIZE / 1024 / 1024);
+    printf("TOTAL COUNTED FREE PAGES: %lld\n", total_free_pages);
+    printf("USED MB: %fMB\n", (double)(PHYS_PAGES - total_free_pages) * PAGE_SIZE / 1024 / 1024);
     printf("AVAILABLE PHYSICAL FREE PAGES: %lld\n", nr_free_pages);
     printf("TEMP(pfn could exceed the range of PHYS_PAGES): %lld\n", temp);
     printf("SHARED pfns: %lld\n", shared);
