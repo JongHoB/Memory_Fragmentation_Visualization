@@ -296,28 +296,36 @@ int get_free_pages_num_and_set_bitmap(physical_memory *p_memory, unsigned long l
 unsigned long long count_free_pages(void)
 {
     unsigned long long nr_free_pages = 0;
-
-    char path[1024];
-    sprintf(path, "/proc/vmstat");
-
-    FILE *fp = fopen(path, "r");
-    if (fp == NULL)
+#if defined(_SC_AVPHYS_PAGES)
     {
-        printf("Failed to open %s\n", path);
-        exit(1);
+        nr_free_pages = sysconf(_SC_AVPHYS_PAGES);
     }
-
-    char line[1024];
-    while (fgets(line, sizeof(line), fp) != NULL)
+#else
     {
-        if (strncmp(line, "nr_free_pages", 13) == 0)
+
+        char path[1024];
+        sprintf(path, "/proc/vmstat");
+
+        FILE *fp = fopen(path, "r");
+        if (fp == NULL)
         {
-            sscanf(line, "%*s %lld", &nr_free_pages);
-            break;
+            printf("Failed to open %s\n", path);
+            exit(1);
         }
-    }
 
-    fclose(fp);
+        char line[1024];
+        while (fgets(line, sizeof(line), fp) != NULL)
+        {
+            if (strncmp(line, "nr_free_pages", 13) == 0)
+            {
+                sscanf(line, "%*s %lld", &nr_free_pages);
+                break;
+            }
+        }
+
+        fclose(fp);
+    }
+#endif
 
     return nr_free_pages;
 }
@@ -469,7 +477,7 @@ int main(int argc, char *argv[])
     p_memory = (physical_memory *)realloc(p_memory, sizeof(physical_memory) * p_memory_size);
 
     // Count the error rate
-    // using /proc/vmstat
+    // using _SC__SC_AVPHYS_PAGES or /proc/vmstat
     // first line nr_free_pages
     unsigned long long nr_free_pages = 0;
     nr_free_pages = count_free_pages();
@@ -522,7 +530,7 @@ int main(int argc, char *argv[])
     printf("PAGES NUMBERS: %lld\n", PHYS_PAGES);
     printf("ERROR RATE: %f\n", (double)(total_free_pages - nr_free_pages) / nr_free_pages * 100);
     printf("TOTAL FREE PAGES: %lld\n", total_free_pages);
-    printf("NR_FREE_PAGES from /proc/vmstat: %lld\n", nr_free_pages);
+    printf("AVAILABLE PHYSICAL FREE PAGES: %lld\n", nr_free_pages);
     printf("TEMP(pfn could exceed the range of PHYS_PAGES): %lld\n", temp);
     printf("SHARED pfns: %lld\n", shared);
 
