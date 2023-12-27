@@ -13,25 +13,25 @@ typedef struct _p_list
 
 typedef struct _vaddr
 {
-    unsigned long long start;
-    unsigned long long end;
+    __uint64_t start;
+    __uint64_t end;
 } vaddr;
 
 typedef struct _v_info
 {
     vaddr *vaddr_list;
-    unsigned long long vaddr_list_size;
+    __uint64_t vaddr_list_size;
 } v_info;
 
 typedef struct _pfn
 {
-    unsigned long long number;
+    __uint64_t number;
 } pfn;
 
 typedef struct _p_info
 {
     pfn *pfn_list;
-    unsigned long long pfn_list_size;
+    __uint64_t pfn_list_size;
 } p_info;
 
 typedef struct _physical_memory

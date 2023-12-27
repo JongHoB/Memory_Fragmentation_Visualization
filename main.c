@@ -13,13 +13,13 @@
 #include <time.h>
 #include "main.h"
 
-unsigned long long MEM_SIZE;
-unsigned long long PAGE_SIZE;
-unsigned long long PHYS_PAGES;
+__uint64_t MEM_SIZE;
+__uint64_t PAGE_SIZE;
+__uint64_t PHYS_PAGES;
 // page mask for 64bit architecture
 
-unsigned long long temp = 0;
-unsigned long long shared = 0;
+__uint64_t temp = 0;
+__uint64_t shared = 0;
 
 // We need to get the physical memory size
 
@@ -127,8 +127,8 @@ v_info *get_vaddr_list(int pid)
 {
     v_info *vainfo = (v_info *)malloc(sizeof(v_info)); // v_info structure has vaddr_list and vaddr_list_size
     vaddr *vaddr_list = NULL;
-    unsigned long long vaddr_list_size = 0;
-    unsigned long long vaddr_list_capacity = 1024;
+    __uint64_t vaddr_list_size = 0;
+    __uint64_t vaddr_list_capacity = 1024;
 
     vaddr_list = (vaddr *)malloc(sizeof(vaddr) * vaddr_list_capacity);
 
@@ -146,8 +146,8 @@ v_info *get_vaddr_list(int pid)
     char line[1024];
     while (fgets(line, sizeof(line), fp) != NULL)
     {
-        unsigned long long start, end;
-        sscanf(line, "%llx-%llx", &start, &end); // Get the virtual address from /proc/pid/maps
+        __uint64_t start, end;
+        sscanf(line, "%lx-%lx", &start, &end); // Get the virtual address from /proc/pid/maps
 
         if (vaddr_list_size >= vaddr_list_capacity)
         {
@@ -184,8 +184,8 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 {
     p_info *pinfo = (p_info *)malloc(sizeof(p_info)); // p_info structure has pfn_list and pfn_list_size
     pfn *pfn_list = NULL;
-    unsigned long long pfn_list_size = 0;
-    unsigned long long pfn_list_capacity = 1024;
+    __uint64_t pfn_list_size = 0;
+    __uint64_t pfn_list_capacity = 1024;
 
     pfn_list = (pfn *)malloc(sizeof(pfn) * pfn_list_capacity);
 
@@ -203,16 +203,16 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 
     for (int i = 0; i < vaddr_list_size; i++)
     {
-        unsigned long long start = vaddr_list[i].start;
-        unsigned long long end = vaddr_list[i].end;
+        __uint64_t start = vaddr_list[i].start;
+        __uint64_t end = vaddr_list[i].end;
 
-        unsigned long long start_page = start / PAGE_SIZE; // Get the virtual page number from virtual address
-        unsigned long long end_page = end / PAGE_SIZE;
+        __uint64_t start_page = start / PAGE_SIZE; // Get the virtual page number from virtual address
+        __uint64_t end_page = end / PAGE_SIZE;
 
-        for (unsigned long long page = start_page; page <= end_page; page++)
+        for (__uint64_t page = start_page; page <= end_page; page++)
         {
-            unsigned long long offset = page * sizeof(unsigned long long); // Get the offset from page
-            unsigned long long data;                                       // Get the data from offset
+            __uint64_t offset = page * sizeof(__uint64_t); // Get the offset from page
+            __uint64_t data;                               // Get the data from offset
 
             if (fseek(fp, offset, SEEK_SET) != 0)
             {
@@ -220,16 +220,16 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
                 exit(1);
             }
 
-            if (fread(&data, sizeof(unsigned long long), 1, fp) != 1) //
+            if (fread(&data, sizeof(__uint64_t), 1, fp) != 1) //
             {
                 // MAYBE REGION OF VSYSCALL OR SOMETHING CANNOT BE READ
-                // printf("Failed to read pid:%d offset: %lld in %s\n", pid, offset, path);
+                // printf("Failed to read pid:%d offset: %ld in %s\n", pid, offset, path);
                 continue;
             }
 
             if (data & (1ULL << 63)) // Check the page is present
             {
-                unsigned long long p_num = data & (((unsigned long long)1 << 55) - 1); // 55/64 bit is page frame number
+                __uint64_t p_num = data & (((__uint64_t)1 << 55) - 1); // 55/64 bit is page frame number
 
                 // pfn could exceed the range of PHYS_PAGES
                 // pfn could be not in the region of SYSTEM_RAM
@@ -261,20 +261,20 @@ p_info *get_pfn_list(int pid, vaddr *vaddr_list, int vaddr_list_size)
 }
 
 // Set the bitmap and return the free pages number
-int get_free_pages_num_and_set_bitmap(physical_memory *p_memory, unsigned long long p_memory_size, unsigned long long *bitmap)
+int get_free_pages_num_and_set_bitmap(physical_memory *p_memory, __uint64_t p_memory_size, __uint64_t *bitmap)
 {
-    unsigned long long used_pages = 0;
+    __uint64_t used_pages = 0;
     // Set the bitmap
     for (int i = 0; i < p_memory_size; i++)
     {
         p_info *pfn_list = p_memory[i].pinfo;
-        unsigned long long pfn_list_size = pfn_list->pfn_list_size;
+        __uint64_t pfn_list_size = pfn_list->pfn_list_size;
 
         for (int j = 0; j < pfn_list_size; j++)
         {
-            unsigned long long pfn = pfn_list->pfn_list[j].number;
-            unsigned long long index = pfn / 64;
-            unsigned long long offset = pfn % 64;
+            __uint64_t pfn = pfn_list->pfn_list[j].number;
+            __uint64_t index = pfn / 64;
+            __uint64_t offset = pfn % 64;
 
             if (bitmap[index] & (1ULL << offset))
             {
@@ -294,9 +294,9 @@ int get_free_pages_num_and_set_bitmap(physical_memory *p_memory, unsigned long l
 // Get the free pages in /proc/vmstat
 // return the free pages number
 
-unsigned long long count_free_pages(void)
+__uint64_t count_free_pages(void)
 {
-    unsigned long long nr_free_pages = 0;
+    __uint64_t nr_free_pages = 0;
 #if defined(_SC_AVPHYS_PAGES)
     {
         nr_free_pages = sysconf(_SC_AVPHYS_PAGES);
@@ -319,7 +319,7 @@ unsigned long long count_free_pages(void)
         {
             if (strncmp(line, "nr_free_pages", 13) == 0)
             {
-                sscanf(line, "%*s %lld", &nr_free_pages);
+                sscanf(line, "%*s %ld", &nr_free_pages);
                 break;
             }
         }
@@ -339,7 +339,7 @@ unsigned long long count_free_pages(void)
 // image size is 2048 * 2048
 // image name is current time.bmp
 
-void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsigned long long bitmap_last_size)
+void make_image(__uint64_t *bitmap, __uint64_t bitmap_size, __uint64_t bitmap_last_size)
 {
     unsigned char *image = (unsigned char *)malloc(sizeof(unsigned char) * 2048 * 2048);
     memset(image, 255, sizeof(unsigned char) * 2048 * 2048);
@@ -396,18 +396,18 @@ void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsi
         0, 0, 0, 0   // important colors
     };
 
-    unsigned long long file_size = 54 + 2048 * 2048 * 3;
+    __uint64_t file_size = 54 + 2048 * 2048 * 3;
     header[2] = (unsigned char)(file_size & 0x000000ff);
     header[3] = (file_size >> 8) & 0x000000ff;
     header[4] = (file_size >> 16) & 0x000000ff;
     header[5] = (file_size >> 24) & 0x000000ff;
 
-    unsigned long long width = 2048;
+    __uint64_t width = 2048;
     header[18] = width & 0x000000ff;
     header[19] = (width >> 8) & 0x000000ff;
     header[20] = (width >> 16) & 0x000000ff;
 
-    unsigned long long height = 2048;
+    __uint64_t height = 2048;
     header[22] = height & 0x000000ff;
     header[23] = (height >> 8) & 0x000000ff;
     header[24] = (height >> 16) & 0x000000ff;
@@ -424,10 +424,10 @@ void make_image(unsigned long long *bitmap, unsigned long long bitmap_size, unsi
 
 // Get the physical memory information
 // by using pid and virtual address
-physical_memory *get_phys_mem_infos(pid_list *pid_list, unsigned long long pid_list_size, unsigned long long *p_memory_size, unsigned long long *p_memory_capacity)
+physical_memory *get_phys_mem_infos(pid_list *pid_list, __uint64_t pid_list_size, __uint64_t *p_memory_size, __uint64_t *p_memory_capacity)
 {
     physical_memory *p_memory = NULL; // physical_memory structure has pid and pinfo
-    unsigned long long p_mem_size = 0;
+    __uint64_t p_mem_size = 0;
 
     p_memory = (physical_memory *)malloc(sizeof(physical_memory) * *p_memory_capacity);
 
@@ -457,10 +457,10 @@ physical_memory *get_phys_mem_infos(pid_list *pid_list, unsigned long long pid_l
 int main(int argc, char *argv[])
 {
     physical_memory *p_memory = NULL; // physical_memory structure has pid and pinfo
-    unsigned long long p_memory_size = 0;
-    unsigned long long p_memory_capacity = 0;
+    __uint64_t p_memory_size = 0;
+    __uint64_t p_memory_capacity = 0;
 
-    unsigned long long total_free_pages;
+    __uint64_t total_free_pages;
 
     // Get the memory size and number of pages
     get_memory_size();
@@ -468,7 +468,7 @@ int main(int argc, char *argv[])
 
     // Get the current pid list
     pid_list *pid_list = get_pid_list();
-    unsigned long long pid_list_size = pid_list->size;
+    __uint64_t pid_list_size = pid_list->size;
 
     p_memory_capacity = pid_list_size;
 
@@ -480,7 +480,7 @@ int main(int argc, char *argv[])
     // Count the error rate
     // using _SC__SC_AVPHYS_PAGES or /proc/vmstat
     // first line nr_free_pages
-    unsigned long long nr_free_pages = 0;
+    __uint64_t nr_free_pages = 0;
     nr_free_pages = count_free_pages();
 
     // Print the physical memory status
@@ -494,14 +494,14 @@ int main(int argc, char *argv[])
     // by using PHYS_PAGES
     // 1 bit represent 1 page
     // 1 byte represent 8 pages
-    // 1 unsigned long long represent 64 pages
+    // 1 __uint64_t represent 64 pages
 
     // So we need to make the bitmap size
     // by using PHYS_PAGES / 64
-    unsigned long long bitmap_size = (PHYS_PAGES / 64) + 1;
-    unsigned long long bitmap_last_size = PHYS_PAGES % 64;
-    unsigned long long *bitmap = (unsigned long long *)malloc(sizeof(unsigned long long) * bitmap_size);
-    memset(bitmap, 0, sizeof(unsigned long long) * bitmap_size);
+    __uint64_t bitmap_size = (PHYS_PAGES / 64) + 1;
+    __uint64_t bitmap_last_size = PHYS_PAGES % 64;
+    __uint64_t *bitmap = (__uint64_t *)malloc(sizeof(__uint64_t) * bitmap_size);
+    memset(bitmap, 0, sizeof(__uint64_t) * bitmap_size);
 
     // Get the free pages number and make the bitmap
     total_free_pages = get_free_pages_num_and_set_bitmap(p_memory, p_memory_size, bitmap);
@@ -528,15 +528,15 @@ int main(int argc, char *argv[])
     // }
 
     // Print the error rate %
-    printf("TOTAL PAGES NUMBERS: %lld\n", PHYS_PAGES);
+    printf("TOTAL PAGES NUMBERS: %ld\n", PHYS_PAGES);
     printf("ERROR RATE: %f\n", (double)(total_free_pages - nr_free_pages) / nr_free_pages * 100);
-    printf("ERROR PAGES: %lld\n", total_free_pages - nr_free_pages);
+    printf("ERROR PAGES: %ld\n", total_free_pages - nr_free_pages);
     printf("ERROR MB: %fMB\n", (double)(total_free_pages - nr_free_pages) * PAGE_SIZE / 1024 / 1024);
-    printf("TOTAL COUNTED FREE PAGES: %lld\n", total_free_pages);
+    printf("TOTAL COUNTED FREE PAGES: %ld\n", total_free_pages);
     printf("USED MB: %fMB\n", (double)(PHYS_PAGES - total_free_pages) * PAGE_SIZE / 1024 / 1024);
-    printf("AVAILABLE PHYSICAL FREE PAGES: %lld\n", nr_free_pages);
-    printf("TEMP(pfn could exceed the range of PHYS_PAGES): %lld\n", temp);
-    printf("SHARED pfns: %lld\n", shared);
+    printf("AVAILABLE PHYSICAL FREE PAGES: %ld\n", nr_free_pages);
+    printf("TEMP(pfn could exceed the range of PHYS_PAGES): %ld\n", temp);
+    printf("SHARED pfns: %ld\n", shared);
 
     // Make the image file
     // make_image(bitmap, bitmap_size, bitmap_last_size);
@@ -556,3 +556,4 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+
